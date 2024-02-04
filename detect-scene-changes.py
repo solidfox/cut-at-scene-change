@@ -29,7 +29,7 @@ def format_timestamp(time_in_seconds):
 
 if __name__ == "__main__":
     video_file = sys.argv[1]
-    output_file = '/tmp/scene_timestamps.txt'
+    output_file = sys.argv[2] if len(sys.argv) > 2 else video_file.split('.')[0] + '_scene_changes.txt'
     save_scene_timestamps(video_file, output_file)
 
 
