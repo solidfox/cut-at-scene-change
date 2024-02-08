@@ -1,15 +1,42 @@
-from scenedetect import VideoManager
+from scenedetect import VideoStream
 from scenedetect import SceneManager
 from scenedetect.detectors import ContentDetector
+from scenedetect.scene_detector import SceneDetector
+from scenedetect import open_video
+import numpy as np
+import cv2
 import sys
 
-def find_scenes(video_path, threshold=30.0):
-    video_manager = VideoManager([video_path])
+
+class CustomContentDetector(SceneDetector):
+    def __init__(self, threshold=30.0, crop_percent=10):
+        super().__init__()
+        self.content_detector = ContentDetector(threshold=threshold)
+        self.crop_percent = crop_percent
+
+    def process_frame(self, frame_num, frame_img):
+        # Crop the frame
+        h, w = frame_img.shape[:2]
+        crop_h, crop_w = int(h * self.crop_percent / 100), int(w * self.crop_percent / 100)
+        cropped_frame = frame_img[crop_h:h - crop_h, crop_w:w - crop_w]
+
+        if frame_num == 0:
+            print(f"Frame shape: {frame_img.shape}, Cropped frame shape: {cropped_frame.shape}")
+
+        # Process the cropped frame with the ContentDetector
+        return self.content_detector.process_frame(frame_num, cropped_frame)
+    
+    def post_process(self, frame_num):
+        return self.content_detector.post_process(frame_num)
+
+def find_scenes(video_path, threshold=45.0, crop_percent=10):
+    video_stream = open_video(video_path, framerate=None, backend='opencv')
     scene_manager = SceneManager()
-    scene_manager.add_detector(ContentDetector(threshold=threshold))
-    video_manager.set_downscale_factor()
-    video_manager.start()
-    scene_manager.detect_scenes(frame_source=video_manager)
+    custom_detector = CustomContentDetector(threshold=threshold, crop_percent=crop_percent)
+    scene_manager.add_detector(custom_detector)
+
+    scene_manager.detect_scenes(video=video_stream)
+
     return scene_manager.get_scene_list()
 
 def save_scene_timestamps(video_path, output_file, threshold=45.0):
