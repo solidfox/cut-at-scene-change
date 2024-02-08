@@ -8,10 +8,9 @@ import cv2
 import sys
 
 
-class CustomContentDetector(SceneDetector):
-    def __init__(self, threshold=30.0, crop_percent=10):
-        super().__init__()
-        self.content_detector = ContentDetector(threshold=threshold)
+class CustomContentDetector(ContentDetector):
+    def __init__(self, threshold=30.0, crop_percent=10, **kwargs):
+        super().__init__(threshold=threshold, **kwargs)
         self.crop_percent = crop_percent
 
     def process_frame(self, frame_num, frame_img):
@@ -20,14 +19,8 @@ class CustomContentDetector(SceneDetector):
         crop_h, crop_w = int(h * self.crop_percent / 100), int(w * self.crop_percent / 100)
         cropped_frame = frame_img[crop_h:h - crop_h, crop_w:w - crop_w]
 
-        if frame_num == 0:
-            print(f"Frame shape: {frame_img.shape}, Cropped frame shape: {cropped_frame.shape}")
-
-        # Process the cropped frame with the ContentDetector
-        return self.content_detector.process_frame(frame_num, cropped_frame)
-    
-    def post_process(self, frame_num):
-        return self.content_detector.post_process(frame_num)
+        # Call the parent class's process_frame method with the cropped frame
+        return super().process_frame(frame_num, cropped_frame)
 
 def find_scenes(video_path, threshold=45.0, crop_percent=10):
     video_stream = open_video(video_path, framerate=None, backend='opencv')
@@ -40,7 +33,7 @@ def find_scenes(video_path, threshold=45.0, crop_percent=10):
     return scene_manager.get_scene_list()
 
 def save_scene_timestamps(video_path, output_file, threshold=45.0):
-    scenes = find_scenes(video_path, threshold)
+    scenes = find_scenes(video_path, threshold, crop_percent=0)
     with open(output_file, 'w') as f:
         for i, scene in enumerate(scenes):
             start, end = scene[0].get_seconds(), scene[1].get_seconds()
